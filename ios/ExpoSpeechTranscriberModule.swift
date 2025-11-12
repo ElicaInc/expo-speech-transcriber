@@ -62,6 +62,7 @@ public class ExpoSpeechTranscriberModule: Module {
       
       let url = URL(fileURLWithPath: audioFilePath)
       let transcription = await self.transcribeAudio(url: url)
+        print(transcription)
       return transcription
     }
 
