@@ -1,5 +1,4 @@
 import { registerWebModule, NativeModule } from 'expo';
-
 import { ExpoSpeechTranscriberModuleEvents } from './ExpoSpeechTranscriber.types';
 
 class ExpoSpeechTranscriberModule extends NativeModule<ExpoSpeechTranscriberModuleEvents> {

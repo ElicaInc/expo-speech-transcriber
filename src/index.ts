@@ -4,20 +4,18 @@ import ExpoSpeechTranscriberModule from './ExpoSpeechTranscriberModule';
 
 export * from './ExpoSpeechTranscriber.types';
 
-export async function transcribeAudio(audioFilePath: string): Promise<string> {
-  try {
-    return await ExpoSpeechTranscriberModule.transcribeAudio(audioFilePath);
-  } catch (error) {
-    console.error('Transcription error:', error);
-    throw error;
-  }
+export function transcribeAudioWithSFRecognizer(audioFilePath: string): Promise<string> {
+  return ExpoSpeechTranscriberModule.transcribeAudioWithSFRecognizer(audioFilePath);
 }
 
-export async function requestPermissions(): Promise<string> {
-  try {
-    return await ExpoSpeechTranscriberModule.requestPermissions();
-  } catch (error) {
-    console.error('Permission error:', error);
-    throw error;
-  }
+export function transcribeAudioWithAnalyzer(audioFilePath: string): Promise<string> {
+  return ExpoSpeechTranscriberModule.transcribeAudioWithAnalyzer(audioFilePath);
+}
+
+export function requestPermissions(): Promise<string> {
+  return ExpoSpeechTranscriberModule.requestPermissions();
+}
+
+export function isAnalyzerAvailable(): boolean {
+  return ExpoSpeechTranscriberModule.isAnalyzerAvailable();
 }
