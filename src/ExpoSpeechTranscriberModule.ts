@@ -1,6 +1,8 @@
 import { requireNativeModule, NativeModule } from 'expo-modules-core';
 import type {
   ExpoSpeechTranscriberModuleEvents,
+  PermissionTypes,
+  MicrophonePermissionTypes
 } from './ExpoSpeechTranscriber.types';
 
 declare class ExpoSpeechTranscriberNative extends NativeModule<ExpoSpeechTranscriberModuleEvents> {
@@ -8,8 +10,8 @@ declare class ExpoSpeechTranscriberNative extends NativeModule<ExpoSpeechTranscr
   stopListening(): void;
   transcribeAudioWithSFRecognizer(audioFilePath: string): Promise<string>;
   transcribeAudioWithAnalyzer(audioFilePath: string): Promise<string>;
-  requestPermissions(): Promise<string>;
-  requestMicrophonePermissions(): Promise<string>;
+  requestPermissions(): Promise<PermissionTypes>;
+  requestMicrophonePermissions(): Promise<MicrophonePermissionTypes>;
   isRecording(): boolean;
   isAnalyzerAvailable(): boolean;
 }

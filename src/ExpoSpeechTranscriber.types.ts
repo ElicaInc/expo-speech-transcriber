@@ -23,6 +23,11 @@ export type ChangeEventPayload = {
   value: string;
 };
 
+
+export type PermissionTypes = 'authorized' | 'denied' | 'restricted' | 'notDetermined';
+
+export type MicrophonePermissionTypes = 'granted' | 'denied'
+
 export type ExpoSpeechTranscriberViewProps = {
   url: string;
   onLoad: (event: { nativeEvent: OnLoadEventPayload }) => void;

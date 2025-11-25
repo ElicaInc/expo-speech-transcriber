@@ -4,6 +4,8 @@ import ExpoSpeechTranscriberModule from './ExpoSpeechTranscriberModule';
 import type {
   TranscriptionProgressPayload,
   TranscriptionErrorPayload,
+  MicrophonePermissionTypes,
+  PermissionTypes
 } from './ExpoSpeechTranscriber.types';
 import { useState, useEffect } from 'react';
 
@@ -26,11 +28,11 @@ export function transcribeAudioWithAnalyzer(audioFilePath: string): Promise<stri
   return ExpoSpeechTranscriberModule.transcribeAudioWithAnalyzer(audioFilePath);
 }
 
-export function requestPermissions(): Promise<string> {
+export function requestPermissions(): Promise<PermissionTypes> {
   return ExpoSpeechTranscriberModule.requestPermissions();
 }
 
-export function requestMicrophonePermissions(): Promise<string> {
+export function requestMicrophonePermissions(): Promise<MicrophonePermissionTypes> {
   return ExpoSpeechTranscriberModule.requestMicrophonePermissions();
 }
 
@@ -56,7 +58,8 @@ export function useRealTimeTranscription() {
 
     const errorListener = ExpoSpeechTranscriberModule.addListener('onTranscriptionError', (payload: TranscriptionErrorPayload) => {
       setError(payload.error);
-    });
+    })
+
 
     const interval = setInterval(() => {
       const newIsRecording = ExpoSpeechTranscriberModule.isRecording();

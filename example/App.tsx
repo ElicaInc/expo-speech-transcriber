@@ -24,7 +24,7 @@ const App = () => {
     try {
       const speechPermission = await SpeechTranscriber.requestPermissions();
       const micPermission = await SpeechTranscriber.requestMicrophonePermissions();
-      if (speechPermission === 'authorized' && micPermission === 'granted') {
+      if (speechPermission === "authorized" && micPermission === 'granted') {
         // Set audio mode for recording
         await setAudioModeAsync({
           playsInSilentMode: true,
