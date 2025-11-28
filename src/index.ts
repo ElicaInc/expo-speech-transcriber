@@ -44,6 +44,22 @@ export function isAnalyzerAvailable(): boolean {
   return ExpoSpeechTranscriberModule.isAnalyzerAvailable();
 }
 
+export function realtimeBufferTranscribe(
+  buffer: Float32Array,
+  sampleRate: number,
+  channels: number
+): Promise<void> {
+  return ExpoSpeechTranscriberModule.realtimeBufferTranscribe(
+    buffer,
+    sampleRate,
+    channels
+  );
+}
+
+export function stopBufferTranscription(): void {
+  return ExpoSpeechTranscriberModule.stopBufferTranscription();
+}
+
 export function useRealTimeTranscription() {
   const [text, setText] = useState('');
   const [isFinal, setIsFinal] = useState(false);
