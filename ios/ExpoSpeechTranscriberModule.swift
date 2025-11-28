@@ -77,8 +77,8 @@ public class ExpoSpeechTranscriberModule: Module {
             return false
         }
         
-        AsyncFunction("realtimeBufferTranscribe") { (buffer: [Float32], sampleRate: Double, channels: Int) async -> Void in
-            await self.realtimeBufferTranscribe(buffer: buffer, sampleRate: sampleRate, channels: channels)
+        AsyncFunction("realtimeBufferTranscribe") { (buffer: [Float32], sampleRate: Double) async -> Void in
+            await self.realtimeBufferTranscribe(buffer: buffer, sampleRate: sampleRate)
         }
         
         Function("stopBufferTranscription") { () -> Void in
@@ -88,7 +88,7 @@ public class ExpoSpeechTranscriberModule: Module {
     
     // MARK: - Private Implementation Methods
     
-    private func realtimeBufferTranscribe(buffer: [Float32], sampleRate: Double, channels: Int) async -> Void {
+    private func realtimeBufferTranscribe(buffer: [Float32], sampleRate: Double) async -> Void {
         if bufferRecognitionRequest == nil {
             let speechRecognizer = SFSpeechRecognizer()!
             bufferRecognitionRequest = SFSpeechAudioBufferRecognitionRequest()
@@ -116,9 +116,8 @@ public class ExpoSpeechTranscriberModule: Module {
                 )
             }
         }
-        
-        // Convert [Float32] to AVAudioPCMBuffer
-        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: AVAudioChannelCount(channels))!
+      
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: AVAudioChannelCount(1))! // hardcode channel to 1 since we only support mono audio
         guard let pcmBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(buffer.count)) else {
             self.sendEvent("onTranscriptionError", ["message": "Unable to create PCM buffer"])
             return
@@ -127,10 +126,12 @@ public class ExpoSpeechTranscriberModule: Module {
         pcmBuffer.frameLength = AVAudioFrameCount(buffer.count)
         if let channelData = pcmBuffer.floatChannelData {
             buffer.withUnsafeBufferPointer { bufferPointer in
-                for channel in 0..<Int(channels) {
-                    let channelBuffer = channelData[channel]
-                    memcpy(channelBuffer, bufferPointer.baseAddress, buffer.count * MemoryLayout<Float32>.stride)
-                }
+                guard let sourceAddress = bufferPointer.baseAddress else { return }
+                
+                let destination = channelData[0]
+                let byteCount = buffer.count * MemoryLayout<Float>.size
+                
+                memcpy(destination, sourceAddress, byteCount)
             }
         }
         

@@ -10,7 +10,6 @@ const BufferTranscriptionExample = () => {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [recorder, setRecorder] = useState<AudioRecorder | null>(null);
 
-  // Initialize recorder
   const initializeRecorder = () => {
     const audioRecorder = new AudioRecorder({
       sampleRate: 16000,
@@ -24,14 +23,11 @@ const BufferTranscriptionExample = () => {
     });
 
     audioRecorder.onAudioReady(({ buffer }) => {
-      // Get the audio data from the first channel
       const channelData = buffer.getChannelData(0);
       
-      // Send buffer to transcription
       SpeechTranscriber.realtimeBufferTranscribe(
         channelData,
-        16000, // sample rate
-        1      // mono channel
+        16000
       );
     });
 

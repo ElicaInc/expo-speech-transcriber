@@ -10,6 +10,7 @@ On-device speech transcription for Expo apps using Apple's Speech framework.
 - 🔒 Secure - All processing happens on device
 - ⚡ Realtime transcription - Get live speech-to-text updates with built-in audio capture
 - 📁 File transcription - Transcribe pre-recorded audio files
+- 🎤 Buffer-based transcription - Stream audio buffers from external sources for real-time transcription
 
 ## Installation
 
@@ -22,10 +23,7 @@ Add the plugin to your `app.json`:
 ```json
 {
   "expo": {
-    "plugins": [
-      "expo-audio",
-      "expo-speech-transcriber"
-    ]
+    "plugins": ["expo-audio", "expo-speech-transcriber"]
   }
 }
 ```
@@ -60,18 +58,19 @@ For more details, see Apple's guidelines on [requesting access to protected reso
 Start transcribing speech in real-time. This does not require `expo-audio`.
 
 ```typescript
-import * as SpeechTranscriber from 'expo-speech-transcriber';
+import * as SpeechTranscriber from "expo-speech-transcriber";
 
 // Request permissions
 const speechPermission = await SpeechTranscriber.requestPermissions();
 const micPermission = await SpeechTranscriber.requestMicrophonePermissions();
-if (speechPermission !== 'authorized' || micPermission !== 'granted') {
-  console.log('Permissions denied');
+if (speechPermission !== "authorized" || micPermission !== "granted") {
+  console.log("Permissions denied");
   return;
 }
 
 // Use the hook for realtime updates
-const { text, isFinal, error, isRecording } = SpeechTranscriber.useRealTimeTranscription();
+const { text, isFinal, error, isRecording } =
+  SpeechTranscriber.useRealTimeTranscription();
 
 // Start transcription
 await SpeechTranscriber.recordRealTimeAndTranscribe();
@@ -85,8 +84,8 @@ SpeechTranscriber.stopListening();
 Transcribe pre-recorded audio files. Our library handles transcription but not recording—use `expo-audio` to record audio (see [expo-audio documentation](https://docs.expo.dev/versions/latest/sdk/audio/)), or implement your own recording logic with microphone access via `requestMicrophonePermissions()`.
 
 ```typescript
-import * as SpeechTranscriber from 'expo-speech-transcriber';
-import { useAudioRecorder, RecordingPresets } from 'expo-audio';
+import * as SpeechTranscriber from "expo-speech-transcriber";
+import { useAudioRecorder, RecordingPresets } from "expo-audio";
 
 // Record audio with expo-audio
 const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -98,12 +97,12 @@ const audioUri = audioRecorder.uri;
 
 // Transcribe with SFSpeechRecognizer (preferred)
 const text = await SpeechTranscriber.transcribeAudioWithSFRecognizer(audioUri);
-console.log('Transcription:', text);
+console.log("Transcription:", text);
 
 // Or with SpeechAnalyzer if available
 if (SpeechTranscriber.isAnalyzerAvailable()) {
   const text = await SpeechTranscriber.transcribeAudioWithAnalyzer(audioUri);
-  console.log('Transcription:', text);
+  console.log("Transcription:", text);
 }
 ```
 
@@ -116,6 +115,55 @@ const micPermission = await SpeechTranscriber.requestMicrophonePermissions();
 // Then transcribe the resulting audio file URI
 ```
 
+### Buffer-Based Transcription
+
+Stream audio buffers directly to the transcriber for real-time processing. This is ideal for integrating with audio processing libraries like [react-native-audio-api](https://docs.swmansion.com/react-native-audio-api/).
+
+```typescript
+import * as SpeechTranscriber from "expo-speech-transcriber";
+import { AudioManager, AudioRecorder } from "react-native-audio-api";
+
+// Set up audio recorder
+const recorder = new AudioRecorder({
+  sampleRate: 16000,
+  bufferLengthInSamples: 1600,
+});
+
+AudioManager.setAudioSessionOptions({
+  iosCategory: "playAndRecord",
+  iosMode: "spokenAudio",
+  iosOptions: ["allowBluetooth", "defaultToSpeaker"],
+});
+
+// Request permissions
+const speechPermission = await SpeechTranscriber.requestPermissions();
+const micPermission = await AudioManager.requestRecordingPermissions();
+
+// Stream audio buffers to transcriber
+recorder.onAudioReady(({ buffer }) => {
+  const channelData = buffer.getChannelData(0);
+  SpeechTranscriber.realtimeBufferTranscribe(
+    channelData, // Float32Array or number[]
+    16000, // sample rate
+    1 // channels (mono)
+  );
+});
+
+// Use the hook to get transcription updates
+const { text, isFinal, error } = SpeechTranscriber.useRealTimeTranscription();
+
+// Start streaming
+recorder.start();
+
+// Stop when done
+recorder.stop();
+SpeechTranscriber.stopBufferTranscription();
+```
+
+See the [BufferTranscriptionExample](./example/BufferTranscriptionExample.tsx) for a complete implementation.
+
+
+
 ## API Reference
 
 ### `requestPermissions()`
@@ -124,51 +172,61 @@ Request speech recognition permission.
 **Returns:** `Promise<PermissionTypes>` - One of: `'authorized'`, `'denied'`, `'restricted'`, or `'notDetermined'`
 
 **Example:**
+
 ```typescript
 const status = await SpeechTranscriber.requestPermissions();
 ```
 
 ### `requestMicrophonePermissions()`
+
 Request microphone permission.
 
 **Returns:** `Promise<MicrophonePermissionTypes>` - One of: `'granted'` or `'denied'`
 
 **Example:**
+
 ```typescript
 const status = await SpeechTranscriber.requestMicrophonePermissions();
 ```
 
 ### `recordRealTimeAndTranscribe()`
+
 Start real-time speech transcription. Listen for events via `useRealTimeTranscription` hook.
 
 **Returns:** `Promise<void>`
 
 **Example:**
+
 ```typescript
 await SpeechTranscriber.recordRealTimeAndTranscribe();
 ```
 
 ### `stopListening()`
+
 Stop real-time transcription.
 
 **Returns:** `void`
 
 **Example:**
+
 ```typescript
 SpeechTranscriber.stopListening();
 ```
 
 ### `isRecording()`
+
 Check if real-time transcription is currently recording.
 
 **Returns:** `boolean`
 
 **Example:**
+
 ```typescript
 const recording = SpeechTranscriber.isRecording();
 ```
 
 ### `transcribeAudioWithSFRecognizer(audioFilePath: string)`
+
 Transcribe audio from a pre-recorded file using SFSpeechRecognizer. I prefer this API for its reliability.
 
 **Requires:** iOS 13+, pre-recorded audio file URI (record with `expo-audio` or your own implementation)
@@ -176,11 +234,15 @@ Transcribe audio from a pre-recorded file using SFSpeechRecognizer. I prefer thi
 **Returns:** `Promise<string>` - Transcribed text
 
 **Example:**
+
 ```typescript
-const transcription = await SpeechTranscriber.transcribeAudioWithSFRecognizer('file://path/to/audio.m4a');
+const transcription = await SpeechTranscriber.transcribeAudioWithSFRecognizer(
+  "file://path/to/audio.m4a"
+);
 ```
 
 ### `transcribeAudioWithAnalyzer(audioFilePath: string)`
+
 Transcribe audio from a pre-recorded file using SpeechAnalyzer.
 
 **Requires:** iOS 26+, pre-recorded audio file URI (record with `expo-audio` or your own implementation)
@@ -188,16 +250,21 @@ Transcribe audio from a pre-recorded file using SpeechAnalyzer.
 **Returns:** `Promise<string>` - Transcribed text
 
 **Example:**
+
 ```typescript
-const transcription = await SpeechTranscriber.transcribeAudioWithAnalyzer('file://path/to/audio.m4a');
+const transcription = await SpeechTranscriber.transcribeAudioWithAnalyzer(
+  "file://path/to/audio.m4a"
+);
 ```
 
 ### `isAnalyzerAvailable()`
+
 Check if SpeechAnalyzer API is available.
 
 **Returns:** `boolean` - `true` if iOS 26+, `false` otherwise
 
 **Example:**
+
 ```typescript
 if (SpeechTranscriber.isAnalyzerAvailable()) {
   // Use SpeechAnalyzer
@@ -205,13 +272,48 @@ if (SpeechTranscriber.isAnalyzerAvailable()) {
 ```
 
 ### `useRealTimeTranscription()`
+
 React hook for real-time transcription state.
 
 **Returns:** `{ text: string, isFinal: boolean, error: string | null, isRecording: boolean }`
 
 **Example:**
+
 ```typescript
-const { text, isFinal, error, isRecording } = SpeechTranscriber.useRealTimeTranscription();
+const { text, isFinal, error, isRecording } =
+  SpeechTranscriber.useRealTimeTranscription();
+```
+
+### `realtimeBufferTranscribe(buffer, sampleRate, channels)`
+
+Stream audio buffers for real-time transcription. Ideal for integration with audio processing libraries.
+
+**Parameters:**
+
+- `buffer: Float32Array | number[]` - Audio samples
+- `sampleRate: number` - Sample rate in Hz (e.g., 16000)
+
+**NOTE** We currently support transcription for mono audio only. Natively, the channel is set to 1. 
+
+**Returns:** `Promise<void>`
+
+**Example:**
+
+```typescript
+const audioBuffer = new Float32Array([...]);
+await SpeechTranscriber.realtimeBufferTranscribe(audioBuffer, 16000, 1);
+```
+
+### `stopBufferTranscription()`
+
+Stop buffer-based transcription and clean up resources.
+
+**Returns:** `void`
+
+**Example:**
+
+```typescript
+SpeechTranscriber.stopBufferTranscription();
 ```
 
 ## Example

@@ -1,6 +1,7 @@
 import { registerRootComponent } from 'expo';
 
-import App from './BufferTranscriptionExample';
+import App from './App'; //To see the demo for buffer based transcription, import BufferTranscriptionExample. That is, import App from './BufferTranscriptionExample
+
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
 // It also ensures that whether you load the app in Expo Go or in a native build,

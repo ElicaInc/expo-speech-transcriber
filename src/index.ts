@@ -45,14 +45,13 @@ export function isAnalyzerAvailable(): boolean {
 }
 
 export function realtimeBufferTranscribe(
-  buffer: Float32Array,
+  buffer: number[] | Float32Array,
   sampleRate: number,
-  channels: number
 ): Promise<void> {
+  const bufferArray = Array.isArray(buffer) ? buffer : Array.from(buffer);
   return ExpoSpeechTranscriberModule.realtimeBufferTranscribe(
-    buffer,
+    bufferArray,
     sampleRate,
-    channels
   );
 }
 
