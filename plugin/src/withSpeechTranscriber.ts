@@ -1,4 +1,4 @@
-import { ConfigPlugin, IOSConfig } from 'expo/config-plugins';
+import { ConfigPlugin, IOSConfig, AndroidConfig } from 'expo/config-plugins';
 
 const SPEECH_RECOGNITION_USAGE = 'Allow $(PRODUCT_NAME) to use speech recognition to transcribe audio';
 const MICROPHONE_USAGE = 'Allow $(PRODUCT_NAME) to access your microphone';
@@ -14,6 +14,12 @@ const withSpeechTranscriber: ConfigPlugin<{ speechRecognitionPermission?: string
     NSSpeechRecognitionUsageDescription: speechRecognitionPermission,
     NSMicrophoneUsageDescription: microphonePermission,
   });
+
+  if (microphonePermission !== false) {
+    config = AndroidConfig.Permissions.withPermissions(config, [
+      'android.permission.RECORD_AUDIO',
+    ]);
+  }
 
   return config;
 };

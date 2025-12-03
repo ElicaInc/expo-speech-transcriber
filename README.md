@@ -1,11 +1,12 @@
 # expo-speech-transcriber
 
-On-device speech transcription for Expo apps using Apple's Speech framework.
+On-device speech transcription for Expo apps. Supports iOS (Apple Speech framework) and Android (SpeechRecognizer API).
 
 ## Features
 
 - 🎯 On-device transcription - Works offline, privacy-focused
-- 🚀 Two APIs - Legacy SFSpeechRecognizer (iOS 13+) and SpeechAnalyzer (iOS 26+)
+- 📱 Cross-platform - iOS 13+ and Android 13+ (API 33)
+- 🚀 Multiple APIs - SFSpeechRecognizer (iOS 13+), SpeechAnalyzer (iOS 26+), and Android SpeechRecognizer
 - 📦 Easy integration - Auto-configures permissions
 - 🔒 Secure - All processing happens on device
 - ⚡ Realtime transcription - Get live speech-to-text updates with built-in audio capture
@@ -51,6 +52,8 @@ Apple requires a clear purpose string for speech recognition and microphone perm
 
 For more details, see Apple's guidelines on [requesting access to protected resources](https://developer.apple.com/documentation/uikit/requesting-access-to-protected-resources).
 
+> **Note for Android:** The plugin automatically adds the `RECORD_AUDIO` permission to your Android manifest. No additional configuration is required.
+
 ## Usage
 
 ### Realtime Transcription
@@ -58,13 +61,22 @@ For more details, see Apple's guidelines on [requesting access to protected reso
 Start transcribing speech in real-time. This does not require `expo-audio`.
 
 ```typescript
+import { Platform } from "react-native";
 import * as SpeechTranscriber from "expo-speech-transcriber";
 
 // Request permissions
-const speechPermission = await SpeechTranscriber.requestPermissions();
+// Note: requestPermissions() is only needed on iOS
+if (Platform.OS === "ios") {
+  const speechPermission = await SpeechTranscriber.requestPermissions();
+  if (speechPermission !== "authorized") {
+    console.log("Speech permission denied");
+    return;
+  }
+}
+
 const micPermission = await SpeechTranscriber.requestMicrophonePermissions();
-if (speechPermission !== "authorized" || micPermission !== "granted") {
-  console.log("Permissions denied");
+if (micPermission !== "granted") {
+  console.log("Microphone permission denied");
   return;
 }
 
@@ -78,6 +90,7 @@ await SpeechTranscriber.recordRealTimeAndTranscribe();
 // Stop when done
 SpeechTranscriber.stopListening();
 ```
+**NOTE**: See [RecordRealTimeAndTrancribe](example/RecordRealTimeAndTranscribe.tsx) for an example on how to use Real Time transcription on android. 
 
 ### File Transcription
 
@@ -168,12 +181,18 @@ See the [BufferTranscriptionExample](./example/BufferTranscriptionExample.tsx) f
 ### `requestPermissions()`
 Request speech recognition permission.
 
+**Platform:** iOS only. On Android, speech recognition permission is handled through `requestMicrophonePermissions()`.
+
 **Returns:** `Promise<PermissionTypes>` - One of: `'authorized'`, `'denied'`, `'restricted'`, or `'notDetermined'`
 
 **Example:**
 
 ```typescript
-const status = await SpeechTranscriber.requestPermissions();
+import { Platform } from "react-native";
+
+if (Platform.OS === "ios") {
+  const status = await SpeechTranscriber.requestPermissions();
+}
 ```
 
 ### `requestMicrophonePermissions()`
@@ -228,6 +247,8 @@ const recording = SpeechTranscriber.isRecording();
 
 Transcribe audio from a pre-recorded file using SFSpeechRecognizer. I prefer this API for its reliability.
 
+**Platform:** iOS only
+
 **Requires:** iOS 13+, pre-recorded audio file URI (record with `expo-audio` or your own implementation)
 
 **Returns:** `Promise<string>` - Transcribed text
@@ -244,6 +265,8 @@ const transcription = await SpeechTranscriber.transcribeAudioWithSFRecognizer(
 
 Transcribe audio from a pre-recorded file using SpeechAnalyzer.
 
+**Platform:** iOS only
+
 **Requires:** iOS 26+, pre-recorded audio file URI (record with `expo-audio` or your own implementation)
 
 **Returns:** `Promise<string>` - Transcribed text
@@ -259,6 +282,8 @@ const transcription = await SpeechTranscriber.transcribeAudioWithAnalyzer(
 ### `isAnalyzerAvailable()`
 
 Check if SpeechAnalyzer API is available.
+
+**Platform:** iOS only. Always returns `false` on Android.
 
 **Returns:** `boolean` - `true` if iOS 26+, `false` otherwise
 
@@ -283,7 +308,7 @@ const { text, isFinal, error, isRecording } =
   SpeechTranscriber.useRealTimeTranscription();
 ```
 
-### `realtimeBufferTranscribe(buffer, sampleRate, channels)`
+### `realtimeBufferTranscribe(buffer, sampleRate)`
 
 Stream audio buffers for real-time transcription. Ideal for integration with audio processing libraries.
 
@@ -321,16 +346,23 @@ See the [example app](./example) for a complete implementation demonstrating all
 
 ## Requirements
 
+### iOS
 - iOS 13.0+
 - Expo SDK 52+
 - Development build (Expo Go not supported - [why?](https://expo.dev/blog/expo-go-vs-development-builds))
 
+### Android
+- Android 13+ (API level 33)
+- Expo SDK 52+
+- Development build (Expo Go not supported)
+
 ## Limitations
 
-- **iOS only** - Android not supported (Speech framework is Apple-only)
 - **English only** - Currently hardcoded to `en_US` locale
 - **File size** - Best for short recordings (< 1 minute)
 - **Recording not included** - Real-time transcription captures audio internally; file transcription requires pre-recorded audio files (use `expo-audio` or implement your own recording with `requestMicrophonePermissions()`)
+- **Android file transcription** - File-based transcription (`transcribeAudioWithSFRecognizer`, `transcribeAudioWithAnalyzer`) is iOS only. Android supports real-time transcription
+- **Android API level** - Android requires API level 33+ (Android 13)
 
 ## License
 
