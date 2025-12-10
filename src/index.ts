@@ -81,6 +81,12 @@ export function useRealTimeTranscription() {
       setIsRecording(prev => (prev !== newIsRecording ? newIsRecording : prev));
     }, 500);
 
+    useEffect(() => {
+      if (!isRecording) {
+        setText('');
+      }
+    },[isRecording])
+
     return () => {
       clearInterval(interval);
       progressListener.remove();
