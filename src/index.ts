@@ -16,7 +16,10 @@ export function recordRealTimeAndTranscribe(): Promise<void> {
 export { default as ExpoSpeechTranscriberModule } from './ExpoSpeechTranscriberModule';
 export * from './ExpoSpeechTranscriber.types';
 
-export function transcribeAudioWithSFRecognizer(audioFilePath: string): Promise<string> {
+export function transcribeAudioWithSFRecognizer(audioFilePath: string, options: {
+    locale?: string;
+    shouldReportPartialResults?: boolean;
+} = {} ): Promise<string> {
   return ExpoSpeechTranscriberModule.transcribeAudioWithSFRecognizer(audioFilePath);
 }
 
@@ -24,7 +27,7 @@ export function stopListening(): void {
   return ExpoSpeechTranscriberModule.stopListening();
 }
 
-export function transcribeAudioWithAnalyzer(audioFilePath: string): Promise<string> {
+export function transcribeAudioWithAnalyzer(audioFilePath: string, locale: string = 'en-US'): Promise<string> {
   return ExpoSpeechTranscriberModule.transcribeAudioWithAnalyzer(audioFilePath);
 }
 
