@@ -8,8 +8,8 @@ import type {
 declare class ExpoSpeechTranscriberNative extends NativeModule<ExpoSpeechTranscriberModuleEvents> {
   recordRealTimeAndTranscribe(): Promise<void>;
   stopListening(): void;
-  transcribeAudioWithSFRecognizer(audioFilePath: string): Promise<string>;
-  transcribeAudioWithAnalyzer(audioFilePath: string): Promise<string>;
+  transcribeAudioWithSFRecognizer(audioFilePath: string, options?: { locale?: string }): Promise<string>;
+  transcribeAudioWithAnalyzer(audioFilePath: string, locale?: string): Promise<string>;
   requestPermissions(): Promise<PermissionTypes>;
   requestMicrophonePermissions(): Promise<MicrophonePermissionTypes>;
   isRecording(): boolean;
