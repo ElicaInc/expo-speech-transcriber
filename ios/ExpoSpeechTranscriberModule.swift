@@ -21,7 +21,7 @@ public class ExpoSpeechTranscriberModule: Module {
         }
         
         // Method 2: Transcribe from URL using SFSpeechRecognizer (iOS 13+)
-        AsyncFunction("transcribeAudioWithSFRecognizer") { (audioFilePath: String) async throws -> String in
+        AsyncFunction("transcribeAudioWithSFRecognizer") { (audioFilePath: String, options: [String: Any]?) async throws -> String in
             
             let url: URL
             if audioFilePath.hasPrefix("file://") {
@@ -30,12 +30,21 @@ public class ExpoSpeechTranscriberModule: Module {
                 url = URL(fileURLWithPath: audioFilePath)
             }
             
-            let transcription = await self.transcribeAudio(url: url)
+            // Extract locale from options, default to current device locale
+            let localeIdentifier = options?["locale"] as? String
+            let locale: Locale
+            if let identifier = localeIdentifier {
+                locale = Locale(identifier: identifier)
+            } else {
+                locale = Locale.current
+            }
+            
+            let transcription = await self.transcribeAudio(url: url, locale: locale)
             return transcription
         }
         
         // Method 3: Transcribe from URL using SpeechAnalyzer (iOS 26+)
-        AsyncFunction("transcribeAudioWithAnalyzer") { (audioFilePath: String) async throws -> String in
+        AsyncFunction("transcribeAudioWithAnalyzer") { (audioFilePath: String, localeIdentifier: String?) async throws -> String in
             
             if #available(iOS 26.0, *) {
                 let url: URL
@@ -45,7 +54,19 @@ public class ExpoSpeechTranscriberModule: Module {
                     url = URL(fileURLWithPath: audioFilePath)
                 }
                 
-                let transcription = try await self.transcribeAudioWithAnalyzer(url: url)
+                // Use provided locale or default to current device locale
+                let locale: Locale
+                if let identifier = localeIdentifier {
+                    // Log the received identifier
+                    print("[ExpoSpeechTranscriber] Received localeIdentifier: \(identifier)")
+                    locale = Locale(identifier: identifier)
+                } else {
+                    locale = Locale.current
+                }
+                
+                print("[ExpoSpeechTranscriber] Created Locale object: \(locale.identifier)")
+                
+                let transcription = try await self.transcribeAudioWithAnalyzer(url: url, locale: locale)
                 return transcription
             } else {
                 throw NSError(domain: "ExpoSpeechTranscriber", code: 501,
@@ -214,7 +235,7 @@ public class ExpoSpeechTranscriberModule: Module {
     
     
     // Implemetation for URL transcription with SFSpeechRecognizer
-    private func transcribeAudio(url: URL) async -> String {
+    private func transcribeAudio(url: URL, locale: Locale) async -> String {
         
         guard FileManager.default.fileExists(atPath: url.path) else {
             let err = "Error: Audio file not found at \(url.path)"
@@ -222,8 +243,8 @@ public class ExpoSpeechTranscriberModule: Module {
         }
         
         return await withCheckedContinuation { continuation in
-            guard let recognizer = SFSpeechRecognizer() else {
-                let err = "Error: Speech recognizer not available for current locale"
+            guard let recognizer = SFSpeechRecognizer(locale: locale) else {
+                let err = "Error: Speech recognizer not available for locale \(locale.identifier)"
                 continuation.resume(returning: err)
                 return
             }
@@ -260,45 +281,79 @@ public class ExpoSpeechTranscriberModule: Module {
     
     // Implementation for URL transcription with SpeechAnalyzer (iOS 26+)
     @available(iOS 26.0, *)
-    private func transcribeAudioWithAnalyzer(url: URL) async throws -> String {
+    private func transcribeAudioWithAnalyzer(url: URL, locale: Locale) async throws -> String {
         
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw NSError(domain: "ExpoSpeechTranscriber", code: 404,
                           userInfo: [NSLocalizedDescriptionKey: "Audio file not found at \(url.path)"])
         }
         
-        let locale = Locale(identifier: "en_US")
-        
-        guard await isLocaleSupported(locale: locale) else {
+        // Step 1: Get supported locale using supportedLocale(equivalentTo:) - must use await
+        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
             throw NSError(domain: "ExpoSpeechTranscriber", code: 400,
-                          userInfo: [NSLocalizedDescriptionKey: "English locale not supported"])
+                          userInfo: [NSLocalizedDescriptionKey: "Locale \(locale.identifier) is not supported by SpeechTranscriber"])
         }
         
-        let transcriber = SpeechTranscriber(
-            locale: locale,
-            transcriptionOptions: [],
-            reportingOptions: [.volatileResults],
-            attributeOptions: [.audioTimeRange]
-        )
+        // Log the supported locale for debugging
+        print("[ExpoSpeechTranscriber] Input locale: \(locale.identifier)")
+        print("[ExpoSpeechTranscriber] Supported locale: \(supportedLocale.identifier)")
         
-        try await ensureModel(transcriber: transcriber, locale: locale)
+        // Step 2: Create transcriber with supported locale and transcription preset
+        let transcriber = SpeechTranscriber(locale: supportedLocale, preset: .transcription)
         
+        // Step 3: Check and install assets if needed BEFORE starting transcription
+        print("[ExpoSpeechTranscriber] Checking asset installation status...")
+        do {
+            if let installationRequest = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+                print("[ExpoSpeechTranscriber] Downloading and installing assets...")
+                try await installationRequest.downloadAndInstall()
+                print("[ExpoSpeechTranscriber] Assets installed successfully")
+            } else {
+                print("[ExpoSpeechTranscriber] Assets already installed")
+            }
+        } catch {
+            print("[ExpoSpeechTranscriber] Asset installation error: \(error)")
+            throw NSError(domain: "ExpoSpeechTranscriber", code: 500,
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to install language assets: \(error.localizedDescription)"])
+        }
+        
+        // Step 4: Create analyzer and read audio file
         let analyzer = SpeechAnalyzer(modules: [transcriber])
-        
         let audioFile = try AVAudioFile(forReading: url)
-        if let lastSample = try await analyzer.analyzeSequence(from: audioFile) {
-            try await analyzer.finalizeAndFinish(through: lastSample)
+        
+        print("[ExpoSpeechTranscriber] Starting audio analysis...")
+        
+        // Step 5: Set up results collection task
+        let resultsTask = Task {
+            var collectedText = ""
+            do {
+                for try await result in transcriber.results {
+                    let plainText = String(result.text.characters)
+                    print("[ExpoSpeechTranscriber] Received text: \(plainText)")
+                    collectedText += plainText
+                }
+            } catch {
+                print("[ExpoSpeechTranscriber] Error collecting transcription results: \(error)")
+            }
+            return collectedText
+        }
+        
+        // Step 6: Perform analysis
+        let lastSampleTime = try await analyzer.analyzeSequence(from: audioFile)
+        
+        // Step 7: Finish analysis
+        if let lastSampleTime {
+            print("[ExpoSpeechTranscriber] Finalizing analysis...")
+            try await analyzer.finalizeAndFinish(through: lastSampleTime)
         } else {
+            print("[ExpoSpeechTranscriber] No audio data, cancelling...")
             await analyzer.cancelAndFinishNow()
         }
         
-        var finalText = ""
-        for try await recResponse in transcriber.results {
-            if recResponse.isFinal {
-                finalText += String(recResponse.text.characters)
-            }
-        }
+        // Wait for results collection to complete
+        let finalText = await resultsTask.value
         
+        print("[ExpoSpeechTranscriber] Final transcription: \(finalText)")
         let result = finalText.isEmpty ? "No speech detected" : finalText
         return result
     }
